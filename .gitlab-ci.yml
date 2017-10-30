@@ -1,0 +1,87 @@
+stages:
+  - install
+  - test
+  - build
+  - deploy-atech
+  - deploy-heroku
+  - git-remote
+
+variables:
+  GIT_SSL_NO_VERIFY: "1"
+
+install:
+  image: node:8-alpine
+  stage: install
+  artifacts:
+    untracked: true
+    paths:
+    - node_modules/
+  script:
+    - npm install
+
+lint:
+  image: node:8-alpine
+  stage: test
+  script:
+    - npm run lint
+  dependencies:
+    - install
+
+unit-it:
+  image: node:8-alpine
+  stage: test
+  variables:
+    NODE_ENV: dev
+    TOKEN_USERNAME: ahp_user
+    TOKEN_PASSWORD: 123456
+    TOKEN_SECRET: token-generator-secret-local
+  script:
+    - npm run test
+  dependencies:
+    - install
+
+build:
+  image: node:8-alpine
+  stage: build
+  script:
+    - npm run heroku-postbuild
+  dependencies:
+    - install
+  artifacts:
+    untracked: true
+    paths:
+    - dist/
+
+.atech-registry:
+  image: docker:latest
+  services:
+    - docker:dind
+  stage: deploy-atech
+  variables:
+    image_name: registry.atech.com.br/token-generator
+  script:
+    - docker login -u ${REGISTRY_USER} -p ${REGISTRY_PASSWORD} ${REGISTRY_SERVER}
+    - docker build -t ${image_name} .
+    - docker push ${image_name}
+  dependencies:
+    - build
+    - install
+  only:
+    - master
+
+heroku:
+  image: tmaier/dpl
+  stage: deploy-heroku
+  script:
+    - dpl --provider=heroku --app=ahp-decoder-tcrf-dev --api-key=${HEROKU_API_KEY}
+  only:
+    - master
+
+.embraer:
+  image: indiehosters/git
+  stage: git-remote
+  script:
+    - git remote add embraer https://${EMBRAER_AHEAD_USER}:${EMBRAER_AHEAD_PASSWORD}@git.embraer.com.br/scm/ahe/token-generator.git
+    - git push embraer master
+  only:
+    - master

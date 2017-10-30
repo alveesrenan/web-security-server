@@ -1,0 +1,10 @@
+{
+  "files.exclude": {
+    "**/.history": true,
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "node_modules/": true,
+    "dist/": true
+  },
+  "vsicons.presets.angular": true
+}
